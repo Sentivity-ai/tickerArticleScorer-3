@@ -8,21 +8,20 @@ import joblib
 from transformers import AutoTokenizer
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 MODEL_PATH = "score_predictor.pth"
-MODEL_URL = "https://www.dropbox.com/scl/fi/atkis4c3x00so6qkdpyoc/score_predictor1.pth?rlkey=u73kyj4xby8aywb0hn67gfyw7&st=kn8x7sxn&dl=0"  # Replace with real link
 
 if not os.path.exists(MODEL_PATH):
-    print("Downloading model from Dropbox...")
-    r = requests.get(MODEL_URL)
-    with open(MODEL_PATH, 'wb') as f:
-        f.write(r.content)
+    raise FileNotFoundError("score_predictor.pth not found. Place it in the root directory.")
+
+with open(MODEL_PATH, 'rb') as f:
+    first_bytes = f.read(5)
 
 vectorizer = joblib.load("AutoVectorizer.pkl")
 classifier = joblib.load("AutoClassifier.pkl")
-
 tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/xlm-twitter-politics-sentiment")
 
 class ScorePredictor(nn.Module):
@@ -41,7 +40,7 @@ class ScorePredictor(nn.Module):
         return self.sigmoid(output)
 
 score_model = ScorePredictor(tokenizer.vocab_size)
-score_model.load_state_dict(torch.load("score_predictor.pth", weights_only=False))
+score_model.load_state_dict(torch.load(MODEL_PATH))
 score_model.eval()
 
 def preprocess_text(text):
@@ -90,11 +89,19 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve /static directory (for index.html and any JS/CSS)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Serve index.html at root
+@app.get("/", include_in_schema=False)
+def serve_index():
+    return FileResponse("static/index.html")
 
 @app.get("/api/ticker")
 def analyze_ticker(ticker: str):
