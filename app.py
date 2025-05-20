@@ -41,7 +41,7 @@ class ScorePredictor(nn.Module):
         return self.sigmoid(output)
 
 score_model = ScorePredictor(tokenizer.vocab_size)
-score_model.load_state_dict(torch.load(MODEL_PATH))
+score_model.load_state_dict(torch.load("score_predictor.pth", weights_only=False))
 score_model.eval()
 
 def preprocess_text(text):
