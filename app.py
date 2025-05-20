@@ -5,6 +5,7 @@ import torch.nn as nn
 import re
 import datetime
 from transformers import AutoTokenizer
+import joblib
 
 # Load tokenizer and sentiment model
 MODEL = "cardiffnlp/xlm-twitter-politics-sentiment"
