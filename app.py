@@ -19,9 +19,8 @@ if not os.path.exists(MODEL_PATH):
 
 with open(MODEL_PATH, 'rb') as f:
     first_bytes = f.read(5)
-    if first_bytes.startswith(b"<html") or first_bytes.startswith(b"<!DOC"):
-        raise RuntimeError("The file at score_predictor.pth is an HTML page, not a PyTorch model. Please check your download source.")
 
+    
 vectorizer = joblib.load("AutoVectorizer.pkl")
 classifier = joblib.load("AutoClassifier.pkl")
 tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/xlm-twitter-politics-sentiment")
@@ -141,4 +140,8 @@ def analyze_ticker(ticker: str):
     }
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     uvicorn.run("app:app", host="0.0.0.0", port=10000, reload=True)
+=======
+    uvicorn.run("app:app", host="0.0.0.0", port=10000, reload=True)
+>>>>>>> 85a25836dcc78d3605d5b860c14ca69de3ab668d
