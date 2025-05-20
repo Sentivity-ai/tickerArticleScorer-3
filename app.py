@@ -10,6 +10,25 @@ from transformers import AutoTokenizer
 MODEL = "cardiffnlp/xlm-twitter-politics-sentiment"
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
 
+vectorizer = joblib.load("AutoVectorizer.pkl")
+classifier = joblib.load("AutoClassifier.pkl")
+
+# Global cache
+sentiment_cache = {}
+
+# FastAPI app
+app = FastAPI()
+
+# CORS for frontend or JS usage
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 
 class ScorePredictor(nn.Module):
     def __init__(self, vocab_size, embedding_dim=128, hidden_dim=256, output_dim=1):
