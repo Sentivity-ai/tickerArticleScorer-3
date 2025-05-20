@@ -8,7 +8,8 @@ import joblib
 from transformers import AutoTokenizer
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 MODEL_PATH = "score_predictor.pth"
@@ -95,6 +96,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve /static directory (for index.html and any JS/CSS)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Serve index.html at root
+@app.get("/", include_in_schema=False)
+def serve_index():
+    return FileResponse("static/index.html")
 
 @app.get("/api/ticker")
 def analyze_ticker(ticker: str):
