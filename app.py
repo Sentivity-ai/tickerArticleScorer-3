@@ -1,39 +1,29 @@
-import gradio as gr
+import os
+import re
+import datetime
 import requests
 import torch
 import torch.nn as nn
-import re
-import datetime
-from transformers import AutoTokenizer
 import joblib
+from transformers import AutoTokenizer
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 
-# Load tokenizer and sentiment model
-MODEL = "cardiffnlp/xlm-twitter-politics-sentiment"
-tokenizer = AutoTokenizer.from_pretrained(MODEL)
+MODEL_PATH = "score_predictor.pth"
+MODEL_URL = "https://www.dropbox.com/scl/fi/atkis4c3x00so6qkdpyoc/score_predictor1.pth?rlkey=u73kyj4xby8aywb0hn67gfyw7&st=kn8x7sxn&dl=0"  # Replace with real link
+
+if not os.path.exists(MODEL_PATH):
+    print("Downloading model from Dropbox...")
+    r = requests.get(MODEL_URL)
+    with open(MODEL_PATH, 'wb') as f:
+        f.write(r.content)
 
 vectorizer = joblib.load("AutoVectorizer.pkl")
 classifier = joblib.load("AutoClassifier.pkl")
 
-# Global cache
-sentiment_cache = {}
-
-# FastAPI app
-app = FastAPI()
-
-# CORS for frontend or JS usage
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
+tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/xlm-twitter-politics-sentiment")
 
 class ScorePredictor(nn.Module):
     def __init__(self, vocab_size, embedding_dim=128, hidden_dim=256, output_dim=1):
@@ -50,20 +40,17 @@ class ScorePredictor(nn.Module):
         output = self.fc(final_hidden_state)
         return self.sigmoid(output)
 
-# Load trained score predictor model
 score_model = ScorePredictor(tokenizer.vocab_size)
-score_model.load_state_dict(torch.load("score_predictor.pth"))
+score_model.load_state_dict(torch.load(MODEL_PATH))
 score_model.eval()
 
-# preprocesses text
 def preprocess_text(text):
     text = text.lower()
-    text = re.sub(r'http\S+', '', text)
-    text = re.sub(r'[^a-zA-Z0-9\s.,!?]', '', text)
-    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r"http\S+", "", text)
+    text = re.sub(r"[^a-zA-Z0-9\s.,!?]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
     return text
 
-# predicts sentiment
 def predict_sentiment(text):
     if not text:
         return 0.0
@@ -74,98 +61,75 @@ def predict_sentiment(text):
         truncation=True,
         max_length=512
     )
-    input_ids, attention_mask = encoded_input["input_ids"], encoded_input["attention_mask"]
+    input_ids = encoded_input["input_ids"]
+    attention_mask = encoded_input["attention_mask"]
     with torch.no_grad():
         score = score_model(input_ids, attention_mask)[0].item()
     return score
 
-# uses Polygon API to fetch article
+POLYGON_API_KEY = os.getenv("POLYGON_API_KEY", "cMCv7jipVvV4qLBikgzllNmW_isiODRR")
+ALLOWED_TICKERS = {"AAPL", "GOOG", "AMZN", "NVDA", "META"}
+sentiment_cache = {ticker: {"article": None, "sentiment": None, "timestamp": None} for ticker in ALLOWED_TICKERS}
+
 def fetch_articles(ticker):
-    POLYGON_API_KEY = "cMCv7jipVvV4qLBikgzllNmW_isiODRR"
     url = f"https://api.polygon.io/v2/reference/news?ticker={ticker}&limit=1&apiKey={POLYGON_API_KEY}"
     try:
         response = requests.get(url)
         data = response.json()
-        if "results" in data and len(data["results"]) > 0:
-            article = data["results"][0]
-            title = article.get("title", "")
-            description = article.get("description", "")
-            return [title + " " + description]
-        else:
-            return [f"No news articles found for {ticker}."]
+        if "results" in data and data["results"]:
+            result = data["results"][0]
+            return result.get("title", "") + " " + result.get("description", "")
     except Exception as e:
-        return [f"Error fetching articles for {ticker}: {str(e)}"]
+        print(f"Error fetching article for {ticker}: {e}")
+    return ""
 
-# allowed tickers
-ALLOWED_TICKERS = {"AAPL", "GOOG", "AMZN", "NVDA", "META"}
+def is_cache_valid(ts, max_minutes=30):
+    return ts and (datetime.datetime.utcnow() - ts).total_seconds() < max_minutes * 60
 
-# initialize cache
-sentiment_cache = {ticker: {"article": None, "sentiment": None, "timestamp": None} for ticker in ALLOWED_TICKERS}
+app = FastAPI()
 
-# checks if cache is valid 
-def is_cache_valid(cached_time, max_age_minutes=30):
-    if cached_time is None:
-        return False
-    now = datetime.datetime.utcnow()
-    age = now - cached_time
-    return age.total_seconds() < max_age_minutes * 60
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# analyzes the tikcers
-def analyze_ticker(ticker):
+@app.get("/api/ticker")
+def analyze_ticker(ticker: str):
     ticker = ticker.upper()
     if ticker not in ALLOWED_TICKERS:
-        return [{
-            "article": f"Sorry, '{ticker}' is not supported. Please choose one of: {', '.join(sorted(ALLOWED_TICKERS))}.",
-            "sentiment": 0.0
-        }]
+        return JSONResponse(status_code=400, content={
+            "error": f"Unsupported ticker '{ticker}'. Try: {', '.join(sorted(ALLOWED_TICKERS))}"
+        })
 
-    cache_entry = sentiment_cache[ticker]
+    cache = sentiment_cache[ticker]
+    if is_cache_valid(cache["timestamp"]) and cache["article"]:
+        return {
+            "ticker": ticker,
+            "article": cache["article"],
+            "sentiment": round(cache["sentiment"], 3)
+        }
 
-    # if cache is valid and article exists
-    if is_cache_valid(cache_entry["timestamp"]) and cache_entry["article"] is not None:
-
-        return [{
-            "article": cache_entry["article"],
-            "sentiment": cache_entry["sentiment"]
-        }]
-
-    # fetch new article and update cache if cache is invalid
-    articles = fetch_articles(ticker)
-    if not articles:
-        return [{"article": "No articles found.", "sentiment": 0.0}]
-
-    article = articles[0]  
+    article = fetch_articles(ticker)
+    if not article:
+        return {"ticker": ticker, "article": "No recent news available.", "sentiment": 0.0}
 
     clean_text = preprocess_text(article)
     sentiment = predict_sentiment(clean_text)
 
-    # update cache with current time
     sentiment_cache[ticker] = {
         "article": article,
         "sentiment": sentiment,
         "timestamp": datetime.datetime.utcnow()
     }
 
-    return [{
+    return {
+        "ticker": ticker,
         "article": article,
-        "sentiment": sentiment
-    }]
+        "sentiment": round(sentiment, 3)
+    }
 
-# display's sentiment
-def display_sentiment(ticker):
-    results = analyze_ticker(ticker)
-    html_output = "<h2>Sentiment Analysis</h2><ul>"
-    for r in results:
-        html_output += f"<li><b>{r['article']}</b><br>Score: {r['sentiment']:.2f}</li>"
-    html_output += "</ul>"
-    return html_output
-
-# search feature
-with gr.Blocks() as demo:
-    gr.Markdown("# Ticker Sentiment Analysis")
-    ticker_input = gr.Textbox(label="Enter Ticker Symbol (e.g., AAPL)")
-    output_html = gr.HTML()
-    analyze_btn = gr.Button("Analyze")
-    analyze_btn.click(fn=display_sentiment, inputs=[ticker_input], outputs=[output_html])
-
-demo.launch()
+if __name__ == "__main__":
+    uvicorn.run("app:app", host="0.0.0.0", port=10000, reload=True)
