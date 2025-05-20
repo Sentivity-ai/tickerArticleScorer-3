@@ -6,6 +6,10 @@ import re
 import datetime
 from transformers import AutoTokenizer
 import joblib
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import uvicorn
 
 # Load tokenizer and sentiment model
 MODEL = "cardiffnlp/xlm-twitter-politics-sentiment"
