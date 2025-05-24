@@ -19,7 +19,8 @@ from scipy.special import softmax
 
 # Load tokenizer and sentiment model
 MODEL = "cardiffnlp/xlm-twitter-politics-sentiment"
-tokenizer = AutoTokenizer.from_pretrained(MODEL)
+tokenizer = AutoTokenizer.from_pretrained(MODEL, use_fast=False)
+
 config = AutoConfig.from_pretrained(MODEL)
 model = AutoModelForSequenceClassification.from_pretrained(MODEL)
 model.save_pretrained(MODEL)
