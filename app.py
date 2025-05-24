@@ -11,16 +11,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import joblib
 import uvicorn
+import numpy as np
+from transformers import AutoModelForSequenceClassification
+from transformers import TFAutoModelForSequenceClassification
+from transformers import AutoConfig
+from scipy.special import softmax
 
-# Load model assets
-MODEL_PATH = "score_predictor.pth"
-VECTORIZER_PATH = "AutoVectorizer.pkl"
+# Load tokenizer and sentiment model
+MODEL = "cardiffnlp/xlm-twitter-politics-sentiment"
+tokenizer = AutoTokenizer.from_pretrained(MODEL)
+config = AutoConfig.from_pretrained(MODEL)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL)
+model.save_pretrained(MODEL)
 
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError("score_predictor.pth not found")
-
-tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/xlm-twitter-politics-sentiment")
-vectorizer = joblib.load(VECTORIZER_PATH)
 
 class ScorePredictor(nn.Module):
     def __init__(self, vocab_size, embedding_dim=128, hidden_dim=256, output_dim=1):
@@ -52,10 +55,20 @@ def preprocess(text):
 def predict_sentiment(text: str) -> float:
     if not text:
         return 0.0
-    tokens = tokenizer(text.split(), return_tensors="pt", padding=True, truncation=True, max_length=512)
-    with torch.no_grad():
-        output = score_model(tokens["input_ids"], tokens["attention_mask"])
-        return round(output[0].item() * 100, 2)  # percent score for UI
+    text = preprocess_text(text)
+    encoded_input = tokenizer(text, return_tensors='pt')
+    output = model(**encoded_input)
+    scores = output[0][0].detach().numpy()
+    scores = softmax(scores)
+    ranking = np.argsort(scores)
+    ranking = ranking[::-1]
+    negative_id = -1
+    for idx, label in config.id2label.items():
+        if label.lower() == 'negative':
+            negative_id = idx
+            negative_score = scores[negative_id]
+    
+    return (1-(float(negative_score)))*100
 
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY", "cMCv7jipVvV4qLBikgzllNmW_isiODRR")
 ALLOWED_TICKERS = {"AAPL", "GOOG", "AMZN", "NVDA", "META"}
