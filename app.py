@@ -40,9 +40,7 @@ class ScorePredictor(nn.Module):
         output = self.fc(final_hidden_state)
         return self.sigmoid(output)
 
-score_model = ScorePredictor(tokenizer.vocab_size)
-score_model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device("cpu")))
-score_model.eval()
+
 
 # Utility functions
 def preprocess(text):
