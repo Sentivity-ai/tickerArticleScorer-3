@@ -16,3 +16,5 @@ datetime
 fastapi
 uvicorn
 tiktoken
+protobuf
+python-multipart
