@@ -18,3 +18,4 @@ uvicorn
 tiktoken
 protobuf
 python-multipart
+sentencepiece
