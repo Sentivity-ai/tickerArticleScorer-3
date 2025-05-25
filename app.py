@@ -98,14 +98,14 @@ def analyze_ticker(ticker: str):
     sentiment = predict_sentiment(article)
     sentiment_cache[ticker] = {
         "article": article,
-        "sentiment": sentiment,
+        "sentiment": float(sentiment),
         "timestamp": datetime.datetime.utcnow()
     }
 
     return {
         "ticker": ticker,
         "article": article,
-        "sentiment": sentiment
+        "sentiment": float(sentiment)
     }
 
 if __name__ == "__main__":
