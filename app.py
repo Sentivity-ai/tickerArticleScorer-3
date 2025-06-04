@@ -83,9 +83,13 @@ def analyze_ticker(ticker: str):
     ticker = ticker.upper()
 
     if ticker not in ALLOWED_TICKERS:
-        return JSONResponse(status_code=400, content={
-            "error": f"Unsupported ticker '{ticker}'. Try: {', '.join(sorted(ALLOWED_TICKERS))}"
-        })
+        return JSONResponse(status_code=400, content=[
+            {
+                "ticker": ticker,
+                "article": "Unsupported ticker.",
+                "sentiment": 0.0
+            }
+        ])
 
     tickers_to_check = [ticker]
     if ticker != "SPY":
@@ -105,7 +109,7 @@ def analyze_ticker(ticker: str):
             continue
 
         article = fetch_latest_article(tk)
-        if not article or article.strip() == "":
+        if not article:
             article = "No recent news available."
 
         sentiment = predict_sentiment(article)
