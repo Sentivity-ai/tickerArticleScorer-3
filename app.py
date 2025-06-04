@@ -5,6 +5,7 @@ import requests
 import torch
 import numpy as np
 import uvicorn
+import yfinance as yf 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,27 +32,36 @@ def predict_sentiment(text: str) -> float:
     if not text:
         return 0.0
     text = preprocess(text)
-    encoded_input = tokenizer(text, return_tensors='pt')
+    encoded_input = tokenizer(text, return_tensors='pt', truncation=True, padding=True, max_length=512)
     output = model(**encoded_input)
-    scores = softmax(output[0][0].detach().numpy())
+    scores = output[0][0].detach().numpy()
+    scores = softmax(scores)
     negative_score = 0.0
     for idx, label in config.id2label.items():
         if label.lower() == 'negative':
             negative_score = scores[idx]
-    return (1 - negative_score) * 100
+    return (1 - negative_score) * 100      
+
 
 # Config
-POLYGON_API_KEY = os.getenv("POLYGON_API_KEY", "cMCv7jipVvV4qLBikgzllNmW_isiODRR")
-ALLOWED_TICKERS = {"AAPL", "GOOG", "AMZN", "NVDA", "META"}
+ALLOWED_TICKERS = {"AAPL", "GOOG", "AMZN", "NVDA", "META", "SPY"} 
 sentiment_cache = {ticker: {"article": None, "sentiment": None, "timestamp": None} for ticker in ALLOWED_TICKERS}
 
-def fetch_latest_article(ticker: str) -> str:
+# Fetches article using yfinance
+def fetch_latest_article(ticker: str) -> str:   
     try:
-        url = f"https://api.polygon.io/v2/reference/news?ticker={ticker}&limit=1&apiKey={POLYGON_API_KEY}"
-        res = requests.get(url).json()
-        if res.get("results"):
-            item = res["results"][0]
-            return (item.get("title", "") + " " + item.get("description", "")).strip()
+        ticker_obj = yf.Ticker(ticker)
+        news_items = ticker_obj.news or []
+        for item in news_items:
+            if item is None:
+                continue
+            url = item.get("link")
+            if not url:
+                continue
+            # lightweight fallback if no parser
+            title = item.get("title", "")
+            summary = item.get("summary", "")
+            return (title + " " + summary).strip()
     except Exception as e:
         print(f"Error fetching news: {e}")
     return ""
@@ -83,30 +93,44 @@ def analyze_ticker(ticker: str):
             "error": f"Unsupported ticker '{ticker}'. Try: {', '.join(sorted(ALLOWED_TICKERS))}"
         })
 
-    cache = sentiment_cache[ticker]
-    if is_cache_valid(cache["timestamp"]) and cache["article"]:
-        return {
-            "ticker": ticker,
-            "article": cache["article"],
-            "sentiment": cache["sentiment"]
+    results = []
+    tickers_to_check = [ticker]
+    if ticker != "SPY":
+        tickers_to_check.append("SPY") 
+
+    for tk in tickers_to_check:
+        cache = sentiment_cache[tk]
+        if is_cache_valid(cache["timestamp"]) and cache["article"]:
+            results.append({
+                "ticker": tk,
+                "article": cache["article"],
+                "sentiment": cache["sentiment"]
+            })
+            continue
+
+        article = fetch_latest_article(tk)
+        if not article:
+            results.append({
+                "ticker": tk,
+                "article": "No recent news available.",
+                "sentiment": 0.0
+            })
+            continue
+
+        sentiment = predict_sentiment(article)
+        sentiment_cache[tk] = {
+            "article": article,
+            "sentiment": float(sentiment),
+            "timestamp": datetime.datetime.utcnow()
         }
 
-    article = fetch_latest_article(ticker)
-    if not article:
-        return {"ticker": ticker, "article": "No recent news available.", "sentiment": 0.0}
+        results.append({
+            "ticker": tk,
+            "article": article,
+            "sentiment": float(sentiment)
+        })
 
-    sentiment = predict_sentiment(article)
-    sentiment_cache[ticker] = {
-        "article": article,
-        "sentiment": float(sentiment),
-        "timestamp": datetime.datetime.utcnow()
-    }
-
-    return {
-        "ticker": ticker,
-        "article": article,
-        "sentiment": float(sentiment)
-    }
+    return results                                  
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
