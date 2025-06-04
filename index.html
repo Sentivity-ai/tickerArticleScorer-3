@@ -1,106 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Ticker Sentiment Analysis</title>
-  <style>
-    body {
-      background-color: #0d1117;
-      color: #e6edf3;
-      font-family: "Segoe UI", sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px;
-    }
-
-    h1 {
-      margin-bottom: 10px;
-      color: #58a6ff;
-    }
-
-    input {
-      padding: 10px;
-      font-size: 16px;
-      border: 1px solid #30363d;
-      background-color: #161b22;
-      color: white;
-      width: 300px;
-      margin-bottom: 20px;
-      border-radius: 5px;
-    }
-
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #238636;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #2ea043;
-    }
-
-    .output {
-      margin-top: 30px;
-      max-width: 600px;
-      text-align: center;
-    }
-
-    .article {
-      margin-bottom: 15px;
-      font-size: 18px;
-    }
-
-    .score {
-      font-size: 24px;
-      font-weight: bold;
-      color: #ffa657;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <title>Ticker Sentiment Analysis</title>
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #f1f5f9;
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    h1 {
+      color: #38bdf8;
+    }
+    input {
+      padding: 0.5em;
+      font-size: 1em;
+    }
+    button {
+      padding: 0.5em 1em;
+      font-size: 1em;
+      background-color: #22c55e;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .result {
+      margin-top: 2em;
+      padding: 1em;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background-color: #1e293b;
+    }
+    .error {
+      color: red;
+      margin-top: 1em;
+    }
+  </style>
 </head>
 <body>
+  <h1>Ticker Sentiment Analysis</h1>
+  <input type="text" id="tickerInput" placeholder="Enter ticker (e.g., AAPL)" />
+  <button onclick="analyze()">Analyze</button>
+  <div id="output"></div>
 
-  <h1>Ticker Sentiment Analysis</h1>
-  <input type="text" id="tickerInput" placeholder="Enter Ticker Symbol (e.g., AAPL)">
-  <button onclick="analyzeTicker()">Analyze</button>
+  <script>
+    async function analyze() {
+      const ticker = document.getElementById("tickerInput").value.trim().toUpperCase();
+      const output = document.getElementById("output");
+      output.innerHTML = "<p>Analyzing…</p>";
 
-  <div class="output" id="resultArea"></div>
+      try {
+        const response = await fetch(`/api/ticker?ticker=${ticker}`);
+        const data = await response.json();
 
-  <script>
-    async function analyzeTicker() {
-      const ticker = document.getElementById("tickerInput").value.trim().toUpperCase();
-      const resultArea = document.getElementById("resultArea");
+        if (response.status !== 200 || !Array.isArray(data)) {
+          output.innerHTML = `<p class="error">Something went wrong. Try again later.</p>`;
+          return;
+        }
 
-      if (!ticker) {
-        resultArea.innerHTML = "<p>Please enter a valid ticker symbol.</p>";
-        return;
-      }
+        output.innerHTML = "";
+        data.forEach(result => {
+          const sentiment = result.sentiment !== null
+            ? `${result.sentiment.toFixed(2)}`
+            : "N/A";
+          const article = result.article || "No article found.";
 
-      resultArea.innerHTML = "<p>Loading...</p>";
-
-      try {
-        const response = await fetch(`/api/ticker?ticker=${ticker}`);
-        if (!response.ok) throw new Error("Invalid request");
-
-        const data = await response.json();
-
-        if (data.error) {
-          resultArea.innerHTML = `<p style="color: red;">${data.error}</p>`;
-        } else {
-          resultArea.innerHTML = `
-            <div class="article">${data.article}</div>
-            <div class="score">Sentiment Score: ${data.sentiment.toFixed(2)}</div>
-          `;
-        }
-      } catch (error) {
-        resultArea.innerHTML = `<p style="color: red;">Something went wrong. Try again later.</p>`;
-      }
-    }
-  </script>
-
+          output.innerHTML += `
+            <div class="result">
+              <h2>${result.ticker}</h2>
+              <p><strong>Sentiment Score:</strong> ${sentiment}</p>
+              <p><strong>Article:</strong> ${article}</p>
+            </div>
+          `;
+        });
+      } catch (err) {
+        console.error(err);
+        output.innerHTML = `<p class="error">Something went wrong. Try again later.</p>`;
+      }
+    }
+  </script>
 </body>
 </html>
