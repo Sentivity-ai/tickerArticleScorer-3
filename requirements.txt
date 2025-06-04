@@ -19,3 +19,4 @@ tiktoken
 protobuf
 python-multipart
 sentencepiece
+yfinance
