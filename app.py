@@ -87,34 +87,51 @@ def extract_article_text(url: str):
     except Exception as e:
         print(f"[ERROR] newspaper3k failed for URL {url}: {e}")
         return None
+# fetch article based on ticker
 def fetch_article_for_ticker(ticker: str):
     try:
         ticker_obj = yf.Ticker(ticker)
-        news_items = ticker_obj.news
+        try:
+            news_items = ticker_obj.news
+        except Exception as e:
+            print(f"[ERROR] Failed to fetch news from yfinance for {ticker}: {e}")
+            return {
+                "title": f"Fallback article for {ticker}",
+                "text": f"Fallback article for {ticker} no real news found for {ticker.lower()}. using fallback data to continue sentiment scoring.",
+                "publish_date": datetime.datetime.utcnow(),
+                "url": None
+            }
 
-        # If it returns something broken or None
-        if not isinstance(news_items, list) or not news_items:
-            raise ValueError("News items are empty or invalid.")
+        if not news_items or not isinstance(news_items, list):
+            print(f"[DEBUG] No news returned for {ticker}")
+            return {
+                "title": f"Fallback article for {ticker}",
+                "text": f"Fallback article for {ticker} no real news found for {ticker.lower()}. using fallback data to continue sentiment scoring.",
+                "publish_date": datetime.datetime.utcnow(),
+                "url": None
+            }
 
         for item in news_items:
+            if not item:
+                continue
+
             url = item.get("link") or item.get("content", {}).get("clickThroughUrl", {}).get("url")
-            if url:
-                parsed = extract_article_text(url)
-                if parsed:
-                    return parsed
+            if not url:
+                continue
+
+            parsed = extract_article_text(url)
+            if parsed and parsed.get("text"):
+                return parsed
 
     except Exception as e:
-        print(f"[ERROR] Failed to fetch news for {ticker}: {e}")
-
-    # ✅ Fallback mocked article
-    print(f"[INFO] Using fallback article for {ticker}")
+        print(f"[FATAL] Could not process news for {ticker}: {e}")
+    
     return {
         "title": f"Fallback article for {ticker}",
-        "text": f"No real news found for {ticker}. Using fallback data to continue sentiment scoring.",
+        "text": f"Fallback article for {ticker} no real news found for {ticker.lower()}. using fallback data to continue sentiment scoring.",
         "publish_date": datetime.datetime.utcnow(),
-        "url": f"https://example.com/{ticker}"
+        "url": None
     }
-    
 def is_cache_valid(cached_time, max_age_minutes=10):
     if cached_time is None:
         return False
