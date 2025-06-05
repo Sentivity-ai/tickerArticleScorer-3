@@ -21,5 +21,3 @@ python-multipart
 sentencepiece
 yfinance
 lxml_html_clean
-newspaper3k
-websockets==12.0
