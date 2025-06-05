@@ -20,3 +20,4 @@ protobuf
 python-multipart
 sentencepiece
 yfinance
+newspaper
