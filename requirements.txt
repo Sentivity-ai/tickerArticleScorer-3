@@ -21,3 +21,4 @@ python-multipart
 sentencepiece
 yfinance
 newspaper3k
+lxml_html_clean
