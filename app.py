@@ -197,4 +197,5 @@ async def get_sentiment(ticker: str):
     results.sort(key=lambda x: 0 if x["ticker"] == user_ticker else 1)
     return JSONResponse(content=results)
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))  # Render injects PORT
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
