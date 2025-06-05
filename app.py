@@ -162,5 +162,5 @@ async def get_sentiment(ticker: str):
     # Ensure user_ticker appears first in the list
     results.sort(key=lambda x: 0 if x["ticker"] == user_ticker else 1)
     return JSONResponse(content=results)
-if _name_ == "_main_":
+if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
