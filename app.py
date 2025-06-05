@@ -11,7 +11,6 @@ from transformers import AutoModelForSequenceClassification
 from transformers import TFAutoModelForSequenceClassification
 from transformers import AutoConfig
 from scipy.special import softmax
-from newspaper import Article
 
 # Load tokenizer and sentiment model
 MODEL = "cardiffnlp/xlm-twitter-politics-sentiment"
