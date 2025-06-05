@@ -51,14 +51,18 @@
     }
 
     .article {
-      margin-bottom: 15px;
-      font-size: 18px;
+      margin-bottom: 10px;
+      font-size: 16px;
     }
 
     .score {
-      font-size: 24px;
+      font-size: 20px;
       font-weight: bold;
       color: #ffa657;
+    }
+
+    .entry {
+      margin-bottom: 30px;
     }
   </style>
 </head>
@@ -87,16 +91,22 @@
         if (!response.ok) throw new Error("Invalid request");
 
         const data = await response.json();
+        if (!Array.isArray(data) || data.length === 0) throw new Error("Empty data");
 
-        if (data.error) {
-          resultArea.innerHTML = `<p style="color: red;">${data.error}</p>`;
-        } else {
-          resultArea.innerHTML = `
-            <div class="article">${data.article}</div>
-            <div class="score">Sentiment Score: ${data.sentiment.toFixed(2)}</div>
+        let html = "";
+        for (const entry of data) {
+          html += `
+            <div class="entry">
+              <div class="article"><strong>${entry.ticker}</strong><br>${entry.article_blurb}</div>
+              <div class="score">
+                ${entry.sentiment !== null ? `Sentiment Score: ${entry.sentiment.toFixed(2)}` : 'No sentiment available.'}
+              </div>
+            </div>
           `;
         }
+        resultArea.innerHTML = html;
       } catch (error) {
+        console.error(error);
         resultArea.innerHTML = `<p style="color: red;">Something went wrong. Try again later.</p>`;
       }
     }
