@@ -88,20 +88,21 @@
   <div class="output" id="resultArea"></div>
 
   <script>
-    async function analyzeTicker() {
-      const ticker = document.getElementById("tickerInput").value.trim().toUpperCase();
+    async function analyzeTicker(tickerOverride = null) {
+      const inputElement = document.getElementById("tickerInput");
       const resultArea = document.getElementById("resultArea");
 
+      const ticker = (tickerOverride || inputElement.value.trim()).toUpperCase();
       if (!ticker) {
         resultArea.innerHTML = "<p>Please enter a valid ticker symbol.</p>";
         return;
       }
 
+      inputElement.value = ticker;
       resultArea.innerHTML = "<p>Loading...</p>";
 
       try {
         const response = await fetch(`/api/sentiment?ticker=${ticker}`);
-
         if (!response.ok) throw new Error("Failed to fetch");
 
         const data = await response.json();
@@ -124,6 +125,15 @@
         resultArea.innerHTML = `<p style="color: red;">Something went wrong. Try again later.</p>`;
       }
     }
+
+    // Auto-analyze from URL param
+    window.addEventListener("DOMContentLoaded", () => {
+      const params = new URLSearchParams(window.location.search);
+      const ticker = params.get("ticker");
+      if (ticker) {
+        analyzeTicker(ticker);
+      }
+    });
   </script>
 </body>
 </html>
