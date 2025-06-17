@@ -1,5 +1,3 @@
-gradio
-praw
 joblib
 scipy
 torch
@@ -8,7 +6,6 @@ pandas
 matplotlib
 schedule
 requests
-xgboost
 scikit-learn
 torch
 pytz
@@ -22,3 +19,6 @@ sentencepiece
 yfinance
 lxml_html_clean
 newspaper3k
+feedparser
+trafilatura
+beautifulsoup4
