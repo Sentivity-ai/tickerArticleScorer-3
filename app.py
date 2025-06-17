@@ -75,7 +75,7 @@ def predict_sentiment(text: str) -> float:
 # ------------------ Caching ------------------ #
 sentiment_cache = {}
 
-def is_cache_valid(cached_time, max_age_minutes=10):
+def is_cache_valid(cached_time, max_age_minutes=30):
     if cached_time is None:
         return False
     now = datetime.datetime.utcnow()
