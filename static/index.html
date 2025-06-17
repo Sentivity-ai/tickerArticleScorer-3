@@ -100,7 +100,8 @@
       resultArea.innerHTML = "<p>Loading...</p>";
 
       try {
-        const response = await fetch(`/api/ticker?ticker=${ticker}`);
+        const response = await fetch(`/api/sentiment?ticker=${ticker}`);
+
         if (!response.ok) throw new Error("Failed to fetch");
 
         const data = await response.json();
