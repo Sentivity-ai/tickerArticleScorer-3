@@ -71,7 +71,8 @@
       output.innerHTML = "<p>Analyzing…</p>";
 
       try {
-        const response = await fetch(`/api/ticker?ticker=${ticker}`);
+        const response = await fetch(`/api/sentiment?ticker=${ticker}`);
+
         const data = await response.json();
 
         if (!Array.isArray(data)) {
