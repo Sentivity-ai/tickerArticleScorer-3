@@ -48,7 +48,7 @@ def get_headers():
     }
 
 # ------------------ Utilities ------------------ #
-def extract_article_text_fallback(url, sleep_between=1.5, verbose=True):
+def extract_article_text_fallback(url, sleep_between=0.3, verbose=True):
     try:
         time.sleep(random.uniform(0.5, sleep_between))
         config = Config()
@@ -383,7 +383,7 @@ def try_polygon(ticker, limit):
 
 
 # ------------------ Master Function ------------------ #
-def get_articles(ticker, limit=5):
+def get_articles(ticker, limit=2):
     ticker = ticker.upper()
     
     sources = [try_newsapi, try_marketaux, try_alphavantage, try_yahoo_rss, try_bing_news, try_finviz, try_polygon]
