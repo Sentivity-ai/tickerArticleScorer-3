@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
 from scipy.special import softmax
-from scraper import get_articles  # ✅ Still sync
+from scraper import get_articles  
 
 # ------------------ Load Models ------------------ #
 MODEL = "cardiffnlp/xlm-twitter-politics-sentiment"
