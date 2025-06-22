@@ -48,9 +48,9 @@ def get_headers():
     }
 
 # ------------------ Utilities ------------------ #
-def extract_article_text_fallback(url, sleep_between=0.3, verbose=True):
+def extract_article_text_fallback(url, sleep_between=0.2, verbose=True):
     try:
-        time.sleep(random.uniform(0.3, sleep_between))
+        time.sleep(random.uniform(0.2, sleep_between))
         config = Config()
         config.browser_user_agent = random.choice(USER_AGENTS)
         article = Article(url, config=config)
@@ -63,7 +63,7 @@ def extract_article_text_fallback(url, sleep_between=0.3, verbose=True):
         if verbose: print(f"[newspaper3k error] {url}: {e}")
 
     try:
-        time.sleep(random.uniform(0.3, sleep_between))
+        time.sleep(random.uniform(0.2, sleep_between))
         downloaded = trafilatura.fetch_url(url)
         if downloaded:
             result = trafilatura.extract(downloaded)
@@ -74,7 +74,7 @@ def extract_article_text_fallback(url, sleep_between=0.3, verbose=True):
         if verbose: print(f"[trafilatura error] {url}: {e}")
 
     try:
-        time.sleep(random.uniform(0.3, sleep_between))
+        time.sleep(random.uniform(0.2, sleep_between))
         r = requests.get(url, headers=get_headers(), timeout=3)  #add: timeout
         soup = BeautifulSoup(r.content, "html.parser")
         paragraphs = soup.find_all("p")
