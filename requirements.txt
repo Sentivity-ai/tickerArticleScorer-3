@@ -3,7 +3,8 @@ scipy
 torch
 transformers
 pandas
-matplotlib
+lightgbm
+vaderSentiment
 schedule
 requests
 scikit-learn
