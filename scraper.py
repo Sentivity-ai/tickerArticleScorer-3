@@ -48,14 +48,15 @@ def get_headers():
     }
 
 # ------------------ Utilities ------------------ #
-def extract_article_text_fallback(url, sleep_between=0.2, verbose=True):
+def extract_article_text_fallback(url, sleep_between=0.31, verbose=True):
     try:
-        time.sleep(random.uniform(0.2, sleep_between))
+        time.sleep(random.uniform(0.15, sleep_between)) #Random short delay before starting newspaper3k (helps avoid bans/throttling)
         config = Config()
-        config.browser_user_agent = random.choice(USER_AGENTS)
+        config.browser_user_agent = random.choice(USER_AGENTS) #Setup newspaper3k with a random user-agent
         article = Article(url, config=config)
         article.download()
         article.parse()
+        #If successful and non-empty, return the result
         if article.text.strip():
             if verbose: print(f"[✔] newspaper3k succeeded for {url}")
             return article.text.strip(), "newspaper3k"
@@ -63,8 +64,8 @@ def extract_article_text_fallback(url, sleep_between=0.2, verbose=True):
         if verbose: print(f"[newspaper3k error] {url}: {e}")
 
     try:
-        time.sleep(random.uniform(0.2, sleep_between))
-        downloaded = trafilatura.fetch_url(url)
+        time.sleep(random.uniform(0.15, sleep_between)) #Sleep before trying next method: trafilatura
+        downloaded = trafilatura.fetch_url(url) # trys fetching and extracting content using trafilatura
         if downloaded:
             result = trafilatura.extract(downloaded)
             if result and result.strip():
@@ -74,8 +75,8 @@ def extract_article_text_fallback(url, sleep_between=0.2, verbose=True):
         if verbose: print(f"[trafilatura error] {url}: {e}")
 
     try:
-        time.sleep(random.uniform(0.2, sleep_between))
-        r = requests.get(url, headers=get_headers(), timeout=3)  #add: timeout
+        time.sleep(random.uniform(0.15, sleep_between)) # Sleep before final method: BeautifulSoup fallback
+        r = requests.get(url, headers=get_headers(), timeout=3)  # Try making a raw GET request with a timeout limit (timout is only for request)
         soup = BeautifulSoup(r.content, "html.parser")
         paragraphs = soup.find_all("p")
         text = "\n".join(p.get_text() for p in paragraphs if len(p.get_text()) > 30)
@@ -119,14 +120,21 @@ def format_date(raw_date, source):
 # ------------------ Sources ------------------ #
 def try_newsapi(ticker, limit):
     key = random.choice(NEWSAPI_KEYS)
-    url = f"https://newsapi.org/v2/everything?q={ticker}&apiKey={key}&language=en&pageSize={limit}"
+    query = f"{ticker} stock news"  # Improved query string
+    url = f"https://newsapi.org/v2/everything?q={query}&apiKey={key}&language=en&pageSize={limit}"
+    
     r = requests.get(url, headers=get_headers())
-    if r.status_code != 200: return []
+    if r.status_code != 200:
+        print(f"[newsapi error] Status: {r.status_code}")
+        return []
+    
     results = []
     for a in r.json().get("articles", []):
-        if not a.get('url'): continue
+        if not a.get('url'):
+            continue
         text, _ = extract_article_text_fallback(a['url'])
-        if not text: continue
+        if not text:
+            continue
         results.append({
             "date": format_date(a['publishedAt'], "newsapi"),
             "title": a['title'],
@@ -134,8 +142,10 @@ def try_newsapi(ticker, limit):
             "url": a['url'],
             "ticker": ticker
         })
-        if len(results) >= limit: break
+        if len(results) >= limit:
+            break
     return results
+
 
 def try_marketaux(ticker, limit):
     key = random.choice(MARKETAUX_KEYS)  # Randomized for safety
@@ -259,21 +269,27 @@ def try_yahoo_rss(ticker, limit):
 def try_bing_news(ticker, limit):
     print(f"🔍 Scraping Bing News for {ticker}...")
     url = "https://www.bing.com/news/search"
+    
+    query = f"{ticker} stock news"  # More specific query
     r = requests.get(url, params={
-        "q": f"{ticker} stock",
+        "q": query,
         "form": "QBNH",
         "setmkt": "en-US",
         "setlang": "en-US",
     }, headers=get_headers(), timeout=10)
+
     results, seen = [], set()
     soup = BeautifulSoup(r.text, "html.parser")
+
     for tag in soup.find_all("a", {"class": "title"}):
         href = tag.get("href")
         title = tag.get_text(strip=True)
-        if not href or href in seen or not title: continue
+        if not href or href in seen or not title:
+            continue
         seen.add(href)
         text, _ = extract_article_text_fallback(href)
-        if not text: continue
+        if not text:
+            continue
         results.append({
             "date": format_date("", "bing"),
             "title": title,
@@ -281,8 +297,10 @@ def try_bing_news(ticker, limit):
             "url": href,
             "ticker": ticker
         })
-        if len(results) >= limit: break
+        if len(results) >= limit:
+            break
     return results
+
 
 def try_finviz(ticker, limit):
     print(f"📰 Scraping Finviz for {ticker}...")
