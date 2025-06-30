@@ -21,7 +21,7 @@ with open('tfidf_vectorizer.pkl', 'rb') as l:
     vectorizer = pickle.load(l)
 
 # ------------------ Config ------------------ #
-CACHE_TTL_MINUTES = 10
+CACHE_TTL_MINUTES = 16
 sentiment_cache = {}
 
  
@@ -98,7 +98,7 @@ app.add_middleware(
 @app.on_event("startup")
 def start_scheduler():
     scheduler = BackgroundScheduler()
-    scheduler.add_job(refresh_cache, "interval", minutes=5, next_run_time=datetime.datetime.utcnow())
+    scheduler.add_job(refresh_cache, "interval", minutes=8, next_run_time=datetime.datetime.utcnow())
     scheduler.start()
 
 @app.get("/", include_in_schema=False)
