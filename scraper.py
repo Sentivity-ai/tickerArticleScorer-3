@@ -1,4 +1,6 @@
 #Date Modified 7/1/2025
+#DISCLAIMER: Some terms and conditions of certain sites or apis may change which could impact the legality of this code for commercial use.
+
 import requests
 import random
 import time
@@ -72,12 +74,13 @@ async def extract_article_text_fallback_async(url, sleep_between=0.31, verbose=T
 def extract_article_text_fallback(url, sleep_between=0.31, verbose=True):
     """Original blocking text extraction logic (uses newspaper3k, trafilatura, BeautifulSoup)."""
     try:
-        time.sleep(random.uniform(0.15, sleep_between))  # small delay before newspaper3k
+        time.sleep(random.uniform(0.15, sleep_between))  #Random short delay before starting newspaper3k (helps avoid bans/throttling)
         config = Config()
-        config.browser_user_agent = random.choice(USER_AGENTS)
+        config.browser_user_agent = random.choice(USER_AGENTS)#Setup newspaper3k with a random user-agent
         article = Article(url, config=config)
         article.download()
         article.parse()
+        #If successful and non-empty, return the result
         if article.text.strip():
             if verbose: print(f"[✔] newspaper3k succeeded for {url}")
             return article.text.strip(), "newspaper3k"
@@ -85,7 +88,7 @@ def extract_article_text_fallback(url, sleep_between=0.31, verbose=True):
         if verbose: print(f"[newspaper3k error] {url}: {e}")
     try:
         time.sleep(random.uniform(0.15, sleep_between))  # delay before trying trafilatura
-        downloaded = trafilatura.fetch_url(url)
+        downloaded = trafilatura.fetch_url(url) # trys fetching and extracting content using trafilatura
         if downloaded:
             result = trafilatura.extract(downloaded)
             if result and result.strip():
@@ -95,7 +98,7 @@ def extract_article_text_fallback(url, sleep_between=0.31, verbose=True):
         if verbose: print(f"[trafilatura error] {url}: {e}")
     try:
         time.sleep(random.uniform(0.15, sleep_between))  # final fallback: raw request + BeautifulSoup
-        r = requests.get(url, headers=get_headers(), timeout=3)
+        r = requests.get(url, headers=get_headers(), timeout=3) # Try making a raw GET request with a timeout limit (timout is only for request)
         soup = BeautifulSoup(r.content, "html.parser")
         paragraphs = soup.find_all("p")
         text = "\n".join(p.get_text() for p in paragraphs if len(p.get_text()) > 30)
@@ -110,7 +113,6 @@ def extract_article_text_fallback(url, sleep_between=0.31, verbose=True):
     return "", "none"
 
 def format_date(raw_date, source):
-    """Same date formatting utility as before."""
     try:
         if source == "newsapi":
             return datetime.fromisoformat(raw_date.replace("Z", "+00:00")).strftime("%Y-%m-%d")
@@ -137,8 +139,8 @@ def format_date(raw_date, source):
 
 # ------------------ Source Fetching Functions (Async) ------------------ #
 async def try_newsapi(ticker, limit):
-    key = random.choice(NEWSAPI_KEYS)
-    query = f"{ticker} stock news"
+    key = random.choice(NEWSAPI_KEYS) # Randomized for safety
+    query = f"{ticker} stock news" # Improved query string chnage if you cna think of a better one
     url = f"https://newsapi.org/v2/everything?q={query}&apiKey={key}&language=en&pageSize={limit}"
     async with ClientSession() as session:
         async with session.get(url, headers=get_headers()) as resp:
@@ -165,7 +167,7 @@ async def try_newsapi(ticker, limit):
     return results
 
 async def try_marketaux(ticker, limit):
-    key = random.choice(MARKETAUX_KEYS)
+    key = random.choice(MARKETAUX_KEYS)# Randomized for safety
     url = "https://api.marketaux.com/v1/news/all"
     params = {
         "api_token": key,
@@ -205,7 +207,7 @@ async def try_marketaux(ticker, limit):
     return results
 
 async def try_alphavantage(ticker, limit):
-    key = random.choice(ALPHA_KEYS)
+    key = random.choice(ALPHA_KEYS) # Randomized for safety
     params = {
         "function": "NEWS_SENTIMENT",
         "tickers": ticker,
@@ -274,7 +276,7 @@ async def try_yahoo_rss(ticker, limit):
 async def try_bing_news(ticker, limit):
     print(f"🔍 Scraping Bing News for {ticker}...")
     url = "https://www.bing.com/news/search"
-    params = {"q": f"{ticker} stock news", "form": "QBNH", "setmkt": "en-US", "setlang": "en-US"}
+    params = {"q": f"{ticker} stock news", "form": "QBNH", "setmkt": "en-US", "setlang": "en-US"} # More specific query ("stock news")
     try:
         async with ClientSession(timeout=ClientTimeout(total=10)) as session:
             async with session.get(url, params=params, headers=get_headers()) as resp:
