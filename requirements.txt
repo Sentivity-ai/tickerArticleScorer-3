@@ -22,3 +22,5 @@ newspaper3k
 feedparser
 trafilatura
 beautifulsoup4
+aiohttp>=3.8.0
+
