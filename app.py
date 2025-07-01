@@ -1,4 +1,4 @@
-# DATE MODIFIED 6/30/
+# DATE MODIFIED 7/1/2025
 import os
 import re
 import datetime
@@ -56,17 +56,16 @@ def is_cache_valid(cached_time: datetime.datetime) -> bool:
     return (datetime.datetime.utcnow() - cached_time).total_seconds() < CACHE_TTL_MINUTES * 60
 
 # ------------------ Background Cache Refresh ------------------ #
-def refresh_cache():
+async def refresh_cache():
     now = datetime.datetime.utcnow()
 
-    # Refresh only predefined tickers + recently queried ones
     tickers = set(PREDEFINED_TICKERS)
     for sym, data in sentiment_cache.items():
-        if (now - data["timestamp"]).total_seconds() < 3 * 3600:  # last 3 hours
+        if (now - data["timestamp"]).total_seconds() < 3 * 3600:
             tickers.add(sym)
 
     for sym in tickers:
-        df = get_articles(sym, limit=2)
+        df = await get_articles(sym, limit=2)  # await here
         if df.empty:
             blurb, score = f"No news articles found for {sym}.", None
         else:
@@ -98,8 +97,9 @@ app.add_middleware(
 @app.on_event("startup")
 def start_scheduler():
     scheduler = BackgroundScheduler()
-    scheduler.add_job(refresh_cache, "interval", minutes=8, next_run_time=datetime.datetime.utcnow())
+    scheduler.add_job(lambda: asyncio.create_task(refresh_cache()), "interval", minutes=8, next_run_time=datetime.datetime.utcnow())
     scheduler.start()
+
 
 @app.get("/", include_in_schema=False)
 async def root():
@@ -123,7 +123,8 @@ async def get_sentiment(ticker: str):
             continue
 
         # Cache miss: fetch and score
-        df = get_articles(sym, limit=2)
+        df = await get_articles(sym, limit=2)
+
         if df.empty:
             blurb, score = f"No news articles found for {sym}.", None
         else:
