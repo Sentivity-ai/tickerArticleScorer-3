@@ -13,6 +13,8 @@ from fastapi.staticfiles import StaticFiles
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from apscheduler.schedulers.background import BackgroundScheduler
 from scraper import get_articles
+import asyncio
+
 
 # ------------------ Load ML Models ------------------ #
 with open('lgbm_model.pkl', 'rb') as f:
