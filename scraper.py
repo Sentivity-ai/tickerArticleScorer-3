@@ -473,7 +473,7 @@ async def try_gnews_api(ticker: str, limit: int = 10):
 # ------------------ Master Function ------------------ #
 async def get_articles(ticker, limit=2, max_attempts=2):
     ticker = ticker.upper()
-    sources = [try_polygon, try_gnews_api]
+    sources = [try_newsapi, try_marketaux, try_alphavantage, try_yahoo_rss, try_bing_news, try_finviz, try_polygon, try_gnews_api]
 
     for attempt in range(max_attempts):
         print(f"[get_articles] Attempt {attempt + 1}/{max_attempts}")
